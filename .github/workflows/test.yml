@@ -1,9 +1,10 @@
-name: CI
+name: web3 tests
 
 on:
   push:
   pull_request:
-  workflow_dispatch:
+    branches:
+      - main
 
 env:
   FOUNDRY_PROFILE: ci
@@ -28,16 +29,19 @@ jobs:
           forge --version
 
       - name: Run Forge fmt
+        working-directory: web3
         run: |
           forge fmt --check
         id: fmt
 
       - name: Run Forge build
+        working-directory: web3
         run: |
           forge build --sizes
         id: build
 
       - name: Run Forge tests
+        working-directory: web3
         run: |
           forge test -vvv
         id: test
