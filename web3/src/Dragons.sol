@@ -25,7 +25,7 @@ contract Dragons is ERC721Enumerable {
     uint256 public LastDragonSlainAt;
     uint256 public LastDragonMintPrice;
 
-    constructor() ERC721("Dragons", "DRAGON") {}
+    constructor() ERC721("Dragons", "DRAGONS") {}
 
     function _oneDragonAtATime() internal view {
         if (CurrentDragon != LastDragon) {
