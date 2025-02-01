@@ -56,13 +56,13 @@ contract Dragons is ERC721Enumerable {
     }
 
     function mint() public payable returns (uint256) {
-        // The "nextDragonMintPrice" call also checks that the next dragon can be minted.
+        // The "nextDragonMintPrice" call also checks that the next dragon can be minted. If it cannot, that function call reverts the entire transaction.
         (uint256 nextDragon, uint256 requiredValue) = nextDragonMintPrice(block.timestamp);
         if (msg.value < requiredValue) {
             revert InsufficientValueForMint();
         }
 
-        CurrentDragon++;
+        CurrentDragon = nextDragon;
         LastDragonMintPrice = msg.value;
 
         _mint(address(this), nextDragon);
