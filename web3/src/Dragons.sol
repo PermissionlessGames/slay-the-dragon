@@ -17,6 +17,9 @@ contract Dragons is ERC721Enumerable {
     error OneDragonAtATime();
     error InsufficientValueForMint();
     error InvalidMintTime(uint256 lowerBound);
+    error NoLivingDragon();
+
+    event DragonSlain(uint256 indexed dragon, address indexed slayer);
 
     uint256 public constant SECONDS_PER_DAY = 86400;
 
@@ -24,6 +27,10 @@ contract Dragons is ERC721Enumerable {
     uint256 public LastDragon;
     uint256 public LastDragonSlainAt;
     uint256 public LastDragonMintPrice;
+
+    // Dragon ID => address of slayer.
+    // If dragon has not yet been slain, the slayer will be address(0).
+    mapping(uint256 => address) public DragonSlainBy;
 
     constructor() ERC721("Dragons", "DRAGONS") {}
 
@@ -68,5 +75,19 @@ contract Dragons is ERC721Enumerable {
         _mint(address(this), nextDragon);
 
         return nextDragon;
+    }
+
+    function _slayCurrentDragon(address slayer, bytes memory data) internal {
+        if (CurrentDragon == LastDragon) {
+            revert NoLivingDragon();
+        }
+
+        LastDragon = CurrentDragon;
+        LastDragonSlainAt = block.timestamp;
+        DragonSlainBy[LastDragon] = slayer;
+
+        _safeTransfer(address(this), slayer, LastDragon, data);
+
+        emit DragonSlain(LastDragon, slayer);
     }
 }

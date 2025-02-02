@@ -4,14 +4,26 @@ pragma solidity ^0.8.13;
 import {Test, console} from "forge-std/Test.sol";
 import {Dragons} from "../src/Dragons.sol";
 
+/**
+ * TestableDragons is only intended to be used for testing, and should never be used in a production setting.
+ */
+contract TestableDragons is Dragons {
+    function forceSlayCurrentDragon(address slayer, bytes memory data) external {
+        _slayCurrentDragon(slayer, data);
+    }
+}
+
 contract DragonsTest is Test {
-    Dragons game;
+    TestableDragons game;
 
     uint256 minterPrivateKey = 0x1337;
     address minter = vm.addr(minterPrivateKey);
 
+    uint256 player1PrivateKey = 0x1338;
+    address player1 = vm.addr(player1PrivateKey);
+
     function setUp() public {
-        game = new Dragons();
+        game = new TestableDragons();
     }
 
     function test_deployment() public {
@@ -114,5 +126,46 @@ contract DragonsTest is Test {
         (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + 100*game.SECONDS_PER_DAY());
         assertEq(nextDragon, 1);
         assertEq(nextDragonMintPrice, 400 ether);
+    }
+
+    function test_mint_dragon_after_slaying_previous_dragon() public {
+        (uint256 nextDragon, uint256 nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp);
+        vm.deal(minter, 3*nextDragonMintPrice);
+        assertEq(game.totalSupply(), 0);
+        assertEq(nextDragon, 1);
+
+        // Just warping forward arbitrarily to check setting of LastDragonSlainAt.
+        vm.warp(block.timestamp + 193443);
+
+        vm.startPrank(minter);
+        game.mint{value: nextDragonMintPrice}();
+        assertEq(game.CurrentDragon(), 1);
+        assertEq(game.LastDragon(), 0);
+        assertEq(game.LastDragonSlainAt(), 0);
+        assertEq(game.LastDragonMintPrice(), nextDragonMintPrice);
+        assertEq(game.DragonSlainBy(1), address(0));
+        assertEq(game.ownerOf(1), address(game));
+
+        game.forceSlayCurrentDragon(player1, "");
+
+        assertEq(game.CurrentDragon(), 1);
+        assertEq(game.LastDragon(), 1);
+        assertEq(game.LastDragonSlainAt(), block.timestamp);
+        assertEq(game.LastDragonMintPrice(), nextDragonMintPrice);
+        assertEq(game.DragonSlainBy(1), player1);
+        assertEq(game.ownerOf(1), player1);
+
+        game.mint{value: 2*nextDragonMintPrice}();
+
+        assertEq(game.CurrentDragon(), 2);
+        assertEq(game.LastDragon(), 1);
+        assertEq(game.LastDragonSlainAt(), block.timestamp);
+        assertEq(game.LastDragonMintPrice(), 2*nextDragonMintPrice);
+        assertEq(game.DragonSlainBy(1), player1);
+        assertEq(game.DragonSlainBy(2), address(0));
+        assertEq(game.ownerOf(1), player1);
+        assertEq(game.ownerOf(2), address(game));
+
+        vm.stopPrank();
     }
 }
