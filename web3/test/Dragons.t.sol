@@ -1,8 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import { ERC721 } from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+
 import {Test, console} from "forge-std/Test.sol";
+
 import {Dragons} from "../src/Dragons.sol";
+
+/**
+ * MockERC721 is only intended to be used for testing, and should never be used in a production setting.
+ */
+contract MockERC721 is ERC721 {
+    constructor() ERC721("MockERC721", "MOCK") {}
+
+    function mint(address to, uint256 tokenID) external {
+        _mint(to, tokenID);
+    }
+
+    function burn(uint256 tokenID) external {
+        _burn(tokenID);
+    }
+}
 
 /**
  * TestableDragons is only intended to be used for testing, and should never be used in a production setting.
@@ -16,6 +34,9 @@ contract TestableDragons is Dragons {
 contract DragonsTest is Test {
     TestableDragons game;
 
+    MockERC721 characters1;
+    MockERC721 characters2;
+
     uint256 minterPrivateKey = 0x1337;
     address minter = vm.addr(minterPrivateKey);
 
@@ -24,9 +45,13 @@ contract DragonsTest is Test {
 
     function setUp() public {
         game = new TestableDragons();
+        characters1 = new MockERC721();
+        characters2 = new MockERC721();
     }
 
     function test_deployment() public {
+        assertEq(game.name(), "Dragons");
+        assertEq(game.symbol(), "DRAGONS");
         assertEq(game.LastDragon(), 0);
         assertEq(game.CurrentDragon(), 0);
         assertEq(game.LastDragonSlainAt(), 0);
@@ -51,7 +76,7 @@ contract DragonsTest is Test {
         assertEq(game.LastDragonMintPrice(), 0);
 
         vm.startPrank(minter);
-        uint256 newDragon = game.mint{value: mintPrice}();
+        uint256 newDragon = game.mint{value: mintPrice}(game.DRAGON_COLOR_RED());
         vm.stopPrank();
 
         assertEq(address(game).balance, gameBalance0 + mintPrice);
@@ -71,10 +96,11 @@ contract DragonsTest is Test {
         assertEq(nextDragon, 1);
 
         vm.startPrank(minter);
-        game.mint{value: nextDragonMintPrice}();
+        game.mint{value: nextDragonMintPrice}(game.DRAGON_COLOR_WHITE());
 
         vm.expectRevert(Dragons.OneDragonAtATime.selector);
-        game.mint{value: 2*nextDragonMintPrice}();
+        // 1 - black
+        game.mint{value: 2*nextDragonMintPrice}(1);
         vm.stopPrank();
     }
 
@@ -84,7 +110,8 @@ contract DragonsTest is Test {
 
         vm.startPrank(minter);
         vm.expectRevert(Dragons.InsufficientValueForMint.selector);
-        game.mint{value: nextDragonMintPrice - 1}();
+        // 2 - green
+        game.mint{value: nextDragonMintPrice - 1}(2);
         vm.stopPrank();
     }
 
@@ -95,7 +122,7 @@ contract DragonsTest is Test {
         uint256 gameBalance0 = address(game).balance;
 
         vm.startPrank(minter);
-        game.mint{value: nextDragonMintPrice + 1}();
+        game.mint{value: nextDragonMintPrice + 1}(game.DRAGON_COLOR_BLUE());
         vm.stopPrank();
 
         assertEq(game.ownerOf(nextDragon), address(game));
@@ -138,7 +165,7 @@ contract DragonsTest is Test {
         vm.warp(block.timestamp + 193443);
 
         vm.startPrank(minter);
-        game.mint{value: nextDragonMintPrice}();
+        game.mint{value: nextDragonMintPrice}(game.DRAGON_COLOR_BLUE());
         assertEq(game.CurrentDragon(), 1);
         assertEq(game.LastDragon(), 0);
         assertEq(game.LastDragonSlainAt(), 0);
@@ -155,7 +182,7 @@ contract DragonsTest is Test {
         assertEq(game.DragonSlainBy(1), player1);
         assertEq(game.ownerOf(1), player1);
 
-        game.mint{value: 2*nextDragonMintPrice}();
+        game.mint{value: 2*nextDragonMintPrice}(game.DRAGON_COLOR_RED());
 
         assertEq(game.CurrentDragon(), 2);
         assertEq(game.LastDragon(), 1);
