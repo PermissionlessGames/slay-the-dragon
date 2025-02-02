@@ -95,8 +95,10 @@ contract Dragons is ERC721Enumerable {
             revert InvalidColor();
         }
         DragonColor[nextDragon] = color;
-        DragonPower[nextDragon] = msg.value/400;
+        DragonPower[nextDragon] = msg.value/(400 ether);
         DragonHP[nextDragon] = DragonPower[nextDragon];
+
+        emit DragonCreated(nextDragon, color, DragonPower[nextDragon]);
 
         return nextDragon;
     }

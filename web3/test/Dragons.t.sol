@@ -33,6 +33,8 @@ contract TestableDragons is Dragons {
 
 contract DragonsTest is Test {
     TestableDragons game;
+    event DragonCreated(uint256 indexed dragon, uint256 indexed color, uint256 power);
+    event DragonSlain(uint256 indexed dragon, address indexed slayer);
 
     MockERC721 characters1;
     MockERC721 characters2;
@@ -76,6 +78,8 @@ contract DragonsTest is Test {
         assertEq(game.LastDragonMintPrice(), 0);
 
         vm.startPrank(minter);
+        vm.expectEmit();
+        emit DragonCreated(nextDragon, game.DRAGON_COLOR_RED(), mintPrice/(400 ether));
         uint256 newDragon = game.mint{value: mintPrice}(game.DRAGON_COLOR_RED());
         vm.stopPrank();
 
@@ -87,6 +91,9 @@ contract DragonsTest is Test {
         assertEq(game.CurrentDragon(), newDragon);
         assertEq(game.LastDragonSlainAt(), 0);
         assertEq(game.LastDragonMintPrice(), mintPrice);
+        assertEq(game.DragonColor(newDragon), game.DRAGON_COLOR_RED());
+        assertEq(game.DragonPower(newDragon), mintPrice/(400 ether));
+        assertEq(game.DragonHP(newDragon), mintPrice/(400 ether));
     }
 
     function test_one_dragon_at_a_time() public {
@@ -117,17 +124,22 @@ contract DragonsTest is Test {
 
     function test_minter_can_exceed_minting_cost() public {
         (uint256 nextDragon, uint256 nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp);
-        vm.deal(minter, nextDragonMintPrice + 1);
+        vm.deal(minter, nextDragonMintPrice + (400 ether));
 
         uint256 gameBalance0 = address(game).balance;
 
         vm.startPrank(minter);
-        game.mint{value: nextDragonMintPrice + 1}(game.DRAGON_COLOR_BLUE());
+        vm.expectEmit();
+        emit DragonCreated(nextDragon, game.DRAGON_COLOR_BLUE(), (nextDragonMintPrice + (400 ether))/(400 ether));
+        game.mint{value: nextDragonMintPrice + (400 ether)}(game.DRAGON_COLOR_BLUE());
         vm.stopPrank();
 
         assertEq(game.ownerOf(nextDragon), address(game));
-        assertEq(game.LastDragonMintPrice(), nextDragonMintPrice + 1);
-        assertEq(address(game).balance, nextDragonMintPrice + 1);
+        assertEq(game.LastDragonMintPrice(), nextDragonMintPrice + (400 ether));
+        assertEq(address(game).balance, nextDragonMintPrice + (400 ether));
+        assertEq(game.DragonColor(nextDragon), game.DRAGON_COLOR_BLUE());
+        assertEq(game.DragonPower(nextDragon), (nextDragonMintPrice + (400 ether))/(400 ether));
+        assertEq(game.DragonHP(nextDragon),  (nextDragonMintPrice + (400 ether))/(400 ether));
     }
 
     function test_mint_price_decay() public {
