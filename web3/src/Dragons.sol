@@ -18,7 +18,7 @@ contract Dragons is ERC721Enumerable {
     error InsufficientValueForMint();
     error InvalidMintTime(uint256 lowerBound);
 
-    uint256 constant SECONDS_PER_DAY = 86400;
+    uint256 public constant SECONDS_PER_DAY = 86400;
 
     uint256 public CurrentDragon;
     uint256 public LastDragon;
@@ -49,7 +49,7 @@ contract Dragons is ERC721Enumerable {
         if (daysSinceLastMint * (1000 ether) >= auctionStartPrice - (400 ether)) {
             mintPrice = 400 ether;
         } else {
-            mintPrice = auctionStartPrice - 1000 * daysSinceLastMint;
+            mintPrice = auctionStartPrice - (1000 ether) * daysSinceLastMint;
         }
 
         nextDragonID = CurrentDragon + 1;

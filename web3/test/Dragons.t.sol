@@ -51,4 +51,68 @@ contract DragonsTest is Test {
         assertEq(game.LastDragonSlainAt(), 0);
         assertEq(game.LastDragonMintPrice(), mintPrice);
     }
+
+    function test_one_dragon_at_a_time() public {
+        (uint256 nextDragon, uint256 nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp);
+        vm.deal(minter, 3*nextDragonMintPrice);
+        assertEq(game.totalSupply(), 0);
+        assertEq(nextDragon, 1);
+
+        vm.startPrank(minter);
+        game.mint{value: nextDragonMintPrice}();
+
+        vm.expectRevert(Dragons.OneDragonAtATime.selector);
+        game.mint{value: 2*nextDragonMintPrice}();
+        vm.stopPrank();
+    }
+
+    function test_minting_cost_must_be_paid() public {
+        (uint256 nextDragon, uint256 nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp);
+        vm.deal(minter, nextDragonMintPrice);
+
+        vm.startPrank(minter);
+        vm.expectRevert(Dragons.InsufficientValueForMint.selector);
+        game.mint{value: nextDragonMintPrice - 1}();
+        vm.stopPrank();
+    }
+
+    function test_minter_can_exceed_minting_cost() public {
+        (uint256 nextDragon, uint256 nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp);
+        vm.deal(minter, nextDragonMintPrice + 1);
+
+        uint256 gameBalance0 = address(game).balance;
+
+        vm.startPrank(minter);
+        game.mint{value: nextDragonMintPrice + 1}();
+        vm.stopPrank();
+
+        assertEq(game.ownerOf(nextDragon), address(game));
+        assertEq(game.LastDragonMintPrice(), nextDragonMintPrice + 1);
+        assertEq(address(game).balance, nextDragonMintPrice + 1);
+    }
+
+    function test_mint_price_decay() public {
+        uint256 nextDragon;
+        uint256 nextDragonMintPrice;
+
+        (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + 0);
+        assertEq(nextDragon, 1);
+        assertEq(nextDragonMintPrice, 20000 ether);
+
+        (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + game.SECONDS_PER_DAY());
+        assertEq(nextDragon, 1);
+        assertEq(nextDragonMintPrice, 19000 ether);
+
+        (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + 19*game.SECONDS_PER_DAY());
+        assertEq(nextDragon, 1);
+        assertEq(nextDragonMintPrice, 1000 ether);
+
+        (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + 20*game.SECONDS_PER_DAY());
+        assertEq(nextDragon, 1);
+        assertEq(nextDragonMintPrice, 400 ether);
+
+        (nextDragon, nextDragonMintPrice) = game.nextDragonMintPrice(block.timestamp + 100*game.SECONDS_PER_DAY());
+        assertEq(nextDragon, 1);
+        assertEq(nextDragonMintPrice, 400 ether);
+    }
 }
